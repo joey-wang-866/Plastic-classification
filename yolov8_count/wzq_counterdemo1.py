@@ -256,7 +256,7 @@ def parse_opt():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='yolov8n.pt', help='initial weights path')
-    parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--source', default='person.mp4', type=str, help='video file path')
     parser.add_argument('--view-img', action='store_true', default=True, help='show results')
     parser.add_argument('--save-img', action='store_true', help='save results')

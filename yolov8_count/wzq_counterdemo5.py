@@ -23,6 +23,8 @@ from shapely.geometry import Polygon
 from ultralytics.utils.files import increment_path
 from ultralytics.utils.plotting import Annotator, colors
 from shapely.geometry.point import Point
+import torch
+import time
 # 用于存储跟踪历史记录
 track_history = defaultdict(list)
 # 变量初始化为None，表示当前没有选中的区域
@@ -78,7 +80,8 @@ def mouse_callback(event, x, y, flags, param):
 def run(
         weights='yolov8n.pt',
         device='',
-        source="",
+        scale=1,  # 视频的缩放比例
+        source='',
         save_img=True,  # 是否保存检测结果
         view_img=True,  # 是否显示图像
         exist_ok=False,  # 是否存在
@@ -96,7 +99,6 @@ def run(
     global down
     global total_passing
     global total_region
-    scale = 1 #视频的缩放比例，如果想缩小比例，用小数点表示即可，例如：0.8
     path_record = {} #用于记录每个目标的最近两次位置，通过对比可以得知是上行还是下行
     # 如果检测的资源是摄像头，那么就会是一串数字字符，把他们转成数字格式
     if source.isdigit():
@@ -104,14 +106,21 @@ def run(
     elif not Path(source).exists():
         print("检测资源路径错误")
     # 设置YOLO模型，并根据设备类型选择使用CPU或GPU
+    print("CUDA available:", torch.cuda.is_available())
+    print("GPU device:", torch.cuda.get_device_name(0))
+    print("device:", device)
     model = YOLO(f'{weights}')
     model.to('cuda') if device == '0' else model.to('cpu')
+
     # 提取模型中的类别名称
     names = model.model.names
     # 打开摄像头
     videocapture = cv2.VideoCapture(source)
     #获取检测帧的宽高
     frame_width, frame_height = int(videocapture.get(3)), int(videocapture.get(4))
+
+    print(f"Frame Width: {frame_width}")
+    print(f"Frame Height: {frame_height}")
     #获取视频帧的帧率
     fps, fourcc = int(videocapture.get(5)), cv2.VideoWriter_fourcc(*'mp4v')
     # 设置输出目录，并在其中创建一个新视频文件
@@ -129,9 +138,9 @@ def run(
             break
         vid_frame_count += 1
         # 如果高度和宽度太高，那么可以稍微缩小一下比例，方便操作
-        if frame_width >= 1920 or frame_height >= 1080:
-            # 设置缩小比例
-            frame = cv2.resize(frame, None, fx=scale, fy=scale)
+        frame = cv2.resize(frame, None, fx=scale, fy=scale)
+        print(f"Frame Width: {frame.shape[1]}")
+        print(f"Frame Height: {frame.shape[0]}")
         #对视频帧进行目标追踪检测
         results = model.track(frame, persist=True, classes=classes)
         # 如果检测结果中包含目标框，则提取目标框的位置、ID和类别
@@ -271,8 +280,9 @@ def run(
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='yolov8n.pt', help='initial weights path')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--source', type=str, default="car.mp4", help='file/dir/URL/glob/screen/0(webcam)')
+    parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--scale', type=float, default=1, help='scale factor for video resizing.')
+    parser.add_argument('--source', type=str, default="person.mp4", help='file/dir/URL/glob/screen/0(webcam)')
     parser.add_argument('--view-img', action='store_true', default=True, help='show results')
     parser.add_argument('--save-img', action='store_true',default=True, help='save results')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')

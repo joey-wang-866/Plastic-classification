@@ -16,6 +16,8 @@ import random
 from shapely.geometry import Polygon
 from shapely.geometry.point import Point
 import os
+import torch
+import time
 
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -74,8 +76,9 @@ def mouse_callback(event, x, y, flags, param):
 
 def run(
         weights='yolov8n.pt',
-        source="",
         device='',
+        scale=1,
+        source='',
         view_img=False,  # 是否显示图像
         save_img=False,  # 是否保存图像
         exist_ok=False,  # 是否存在
@@ -92,6 +95,9 @@ def run(
         raise FileNotFoundError(f"Source path '{source}' does not exist.")
 
     # 设置YOLO模型，并根据设备类型选择使用CPU或GPU
+    print("CUDA available:", torch.cuda.is_available())
+    print("GPU device:", torch.cuda.get_device_name(0))
+    print("device:", device)
     model = YOLO(f'{weights}')
     model.to('cuda') if device == '0' else model.to('cpu')
 
@@ -102,7 +108,7 @@ def run(
     videocapture = cv2.VideoCapture(source)
     frame_width, frame_height = int(videocapture.get(3)), int(videocapture.get(4))
     fps, fourcc = int(videocapture.get(5)), cv2.VideoWriter_fourcc(*'mp4v')
-
+    print(videocapture.get(cv2.CAP_PROP_FRAME_COUNT))
     # 设置输出目录，并在其中创建一个新视频文件
     save_dir = increment_path(Path('output') / 'exp', exist_ok)
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -114,6 +120,7 @@ def run(
         if not success:
             break
         vid_frame_count += 1
+        frame = cv2.resize(frame, None, fx=scale, fy=scale)
         # 显示、绘制当前点坐标到窗口上
         if current_point:
             cv2.circle(frame, current_point, 5, (0, 255, 0), 2)
@@ -236,7 +243,8 @@ def parse_opt():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='yolov8n.pt', help='initial weights path')
-    parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--scale', type=float, default=1, help='scale factor for video resizing.')
     parser.add_argument('--source', default='person.mp4', type=str, help='video file path')
     parser.add_argument('--view-img', action='store_true', default=True, help='show results')
     parser.add_argument('--save-img', action='store_true', default=True,help='save results')
@@ -255,4 +263,9 @@ def main(opt):
 
 if __name__ == '__main__':
     opt = parse_opt()
+    predict_start_time = time.time()
     main(opt)
+    predict_end_time = time.time()
+    print(f"Total processing time: {predict_end_time - predict_start_time:.2f} seconds")
+    # 计算FPS
+    print(f"FPS: {322 / (predict_end_time - predict_start_time):.2f}")

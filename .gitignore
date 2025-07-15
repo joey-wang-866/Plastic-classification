@@ -89,3 +89,6 @@ Garbage_classification
 weights
 output_video
 video
+yolov8_count/output
+
+*.mp4
