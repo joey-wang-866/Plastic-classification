@@ -104,7 +104,7 @@ def run(
     if source.isdigit():
         source = int(source)
     elif not Path(source).exists():
-        print("检测资源路径错误")
+        print("偵測資源路徑錯誤")
     # 设置YOLO模型，并根据设备类型选择使用CPU或GPU
     print("CUDA available:", torch.cuda.is_available())
     print("GPU device:", torch.cuda.get_device_name(0))
@@ -123,6 +123,8 @@ def run(
     print(f"Frame Height: {frame_height}")
     #获取视频帧的帧率
     fps, fourcc = int(videocapture.get(5)), cv2.VideoWriter_fourcc(*'mp4v')
+    print(f"FPS: {videocapture.get(cv2.CAP_PROP_FPS)}")
+    print(f"Total frame: {videocapture.get(cv2.CAP_PROP_FRAME_COUNT)}")
     # 设置输出目录，并在其中创建一个新视频文件
     save_dir = increment_path(Path('output') / 'exp', exist_ok)
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -130,7 +132,10 @@ def run(
         source=str(source)
     video_writer = cv2.VideoWriter(str(save_dir / f'{Path(source).stem}.mp4'), fourcc, fps, (int(frame_width*scale), int(frame_height*scale)))
     #设置显示字体的样式
-    font = ImageFont.truetype("Alibaba-PuHuiTi-Bold.ttf", size=20, encoding="unic")
+    font = ImageFont.truetype("Alibaba-PuHuiTi-Bold.ttf", size=int(20*scale), encoding="unic")
+    line_thickness = int(line_thickness * scale)
+    track_thickness = int(track_thickness * scale)
+    region_thickness = int(region_thickness * scale)
     # 遍历视频的每一帧，进行目标检测和跟踪
     while videocapture.isOpened():
         success, frame = videocapture.read()  # 读取检测资源帧
@@ -226,7 +231,7 @@ def run(
             frame_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             # 在 PIL 图像上绘制文字
             draw = ImageDraw.Draw(frame_pil)
-            txt= f"检测到物体的总数是：{detect_count}\n现在总共有{total_region}个在划线区域内\n上行的数量是：{up}\n下行的数量是：{down}\n总共有{len(total_passing)}个经过区域"
+            txt= f"偵測到物體的總數是：{detect_count}\n現在總共有{total_region}個在劃線區域內\n上行的數量是：{up}\n下行的數量是：{down}\n總共有{len(total_passing)}個經過區域"
 
             draw.text((20, 10), txt, font=font, fill=(255, 0, 0))
             # 将 PIL 图像转换回 OpenCV 图像
@@ -266,7 +271,7 @@ def run(
                 # 清空当前坐标点
                 current_point = None
             else:
-                print("坐标个数必须大于3")
+                print("座標個數必須大於3")
         elif key == ord('c'):
             new_regions[0]['polygon'] = []
             # 清空当前坐标点
@@ -282,10 +287,10 @@ def parse_opt():
     parser.add_argument('--weights', type=str, default='yolov8n.pt', help='initial weights path')
     parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--scale', type=float, default=1, help='scale factor for video resizing.')
-    parser.add_argument('--source', type=str, default="person.mp4", help='file/dir/URL/glob/screen/0(webcam)')
-    parser.add_argument('--view-img', action='store_true', default=True, help='show results')
-    parser.add_argument('--save-img', action='store_true',default=True, help='save results')
-    parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+    parser.add_argument('--source', type=str, default="video/japan1.mp4", help='file/dir/URL/glob/screen/0(webcam)')
+    parser.add_argument('--save_img', action='store_true', default=True, help='show results')
+    parser.add_argument('--view_img', action='store_true',default=True, help='save results')
+    parser.add_argument('--exist_ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3')
     parser.add_argument('--line-thickness', type=int, default=2, help='bounding box thickness')
     parser.add_argument('--track-thickness', type=int, default=2, help='Tracking line thickness')
@@ -299,4 +304,9 @@ def main(opt):
 
 if __name__ == '__main__':
     opt = parse_opt()
+    predict_start_time = time.time()
     main(opt)
+    predict_end_time = time.time()
+    print(f"Total processing time: {predict_end_time - predict_start_time:.2f} seconds")
+    # 计算FPS
+    print(f"FPS: {666 / (predict_end_time - predict_start_time):.2f}")
